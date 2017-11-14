@@ -4,8 +4,12 @@ import Html exposing (..)
 import Html.Attributes exposing (..)
 import Time exposing (Time, second)
 import Task
+import Mouse
+import Keyboard
+import Char
+import String
 
-
+main : Program Never Model Msg
 main =
   Html.program
     { init = init
@@ -22,12 +26,17 @@ main =
 type alias Model =
   { now : Time
   , start : Time
+  , clickCount : Int
+  , string : String
   }
 
 
 init : (Model, Cmd Msg)
 init =
-  (Model 0 0 , Task.perform Init Time.now)
+  ( Model 0 0 0 ""
+  , Task.perform Init Time.now
+  )
+
 
 
 
@@ -37,15 +46,40 @@ init =
 type Msg
   = Tick Time
   | Init Time
+  | Click Mouse.Position
+  | Key Keyboard.KeyCode
 
 
 update : Msg -> Model -> (Model, Cmd Msg)
 update msg model =
   case msg of
     Tick newTime ->
-      (Model newTime model.start, Cmd.none)
+      ( { model
+        | now=newTime}
+      , Cmd.none
+      )
+
     Init startTime ->
-      (Model startTime startTime, Cmd.none)
+      ( { model
+        | now = startTime
+        , start = startTime
+        }
+      , Cmd.none
+      )
+
+    Click pos ->
+      ( { model
+        | clickCount = model.clickCount + 1
+        }
+      , Cmd.none
+      )
+
+    Key code ->
+    ( { model
+      | string = model.string ++ ( code |> Char.fromCode |> String.fromChar )
+      }
+    , Cmd.none
+    )
 
 
 
@@ -54,7 +88,12 @@ update msg model =
 
 subscriptions : Model -> Sub Msg
 subscriptions model =
-  Time.every second Tick
+  Sub.batch
+    [ Mouse.clicks Click
+    , Keyboard.downs Key
+    , Time.every second Tick
+    ]
+
 
 
 
@@ -69,6 +108,9 @@ view model =
           |> round
           |> toString
         )
+      , Html.text
+        ( toString model.clickCount )
+      , Html.text model.string
       , footer model
       ]
 
